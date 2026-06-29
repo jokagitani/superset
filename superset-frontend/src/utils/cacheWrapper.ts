@@ -20,7 +20,7 @@
 export const cacheWrapper =
   <T extends unknown[], U>(
     fn: (...args: T) => U,
-    cache: Map<string, U>,
+    cache: Map<string, unknown>,
     keyFn: (...args: T) => string = (...args: T) => JSON.stringify([...args]),
   ) =>
   (...args: T): U => {
