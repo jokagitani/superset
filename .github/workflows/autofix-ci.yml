@@ -32,8 +32,16 @@ jobs:
       - name: Install deps
         run: npm ci --no-audit --no-fund
 
-      - name: ESLint (changed util types)
+      - name: Prettier (formatting of changed area)
+        run: npx prettier --check "src/utils/**/*.{ts,tsx}"
+
+      - name: ESLint
         run: npx oxlint --config oxlint.json src/utils
 
-      - name: Jest (utils)
+      - name: Jest (unit tests)
         run: npm run test -- src/utils
+
+      # The integration gate: a project-wide type-check catches a fix that
+      # compiles in isolation but breaks type inference in *other* files.
+      - name: Type-check (full project)
+        run: npm run type
