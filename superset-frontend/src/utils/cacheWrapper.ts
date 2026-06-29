@@ -18,15 +18,15 @@
  */
 
 export const cacheWrapper =
-  <T extends Array<any>, U>(
+  <T extends unknown[], U>(
     fn: (...args: T) => U,
-    cache: Map<string, any>,
+    cache: Map<string, unknown>,
     keyFn: (...args: T) => string = (...args: T) => JSON.stringify([...args]),
   ) =>
   (...args: T): U => {
     const key = keyFn(...args);
     if (cache.has(key)) {
-      return cache.get(key);
+      return cache.get(key) as U;
     }
     const result = fn(...args);
     cache.set(key, result);
