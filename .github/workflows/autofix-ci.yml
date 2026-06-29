@@ -1,0 +1,39 @@
+# Lightweight verification CI for AutoFix PRs.
+#
+# Drop this into your FORK at:  .github/workflows/autofix-ci.yml
+#
+# Why this exists: Superset's full CI is large and slow (and may not run on fork
+# PRs). The verification gate needs a fast, authoritative green/red signal, so we
+# run ONLY the checks relevant to the auto-generated fixes: ESLint + the targeted
+# Jest tests for the changed util files. The orchestrator polls these check-runs.
+name: AutoFix Verification
+
+on:
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "superset-frontend/src/utils/**"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: superset-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: superset-frontend/package-lock.json
+
+      - name: Install deps
+        run: npm ci --no-audit --no-fund
+
+      - name: ESLint (changed util types)
+        run: npx oxlint --config oxlint.json src/utils
+
+      - name: Jest (utils)
+        run: npm run test -- src/utils
