@@ -41,6 +41,23 @@ jobs:
       - name: Jest (unit tests)
         run: npm run test -- src/utils
 
+      # Build the composite project references (packages/** and plugins/**) so
+      # their lib/ declaration outputs exist. Without this, the project-wide
+      # type-check below fails with TS6305 ("output file has not been built
+      # from source file") for every PR, regardless of the change.
+      #
+      # continue-on-error: `tsc -b` performs declaration emit, which can report
+      # pre-existing declaration-portability errors (TS4023/TS2742/TS4082) that
+      # the authoritative gate (`tsc --noEmit`) does not. We only need this step
+      # to produce the reference outputs; the real type gate is the next step.
+      # Any reference that genuinely fails to build is still caught below as a
+      # TS6305 error from `npm run type`.
+      - name: Build TS project references
+        run: npx tsc -b
+        continue-on-error: true
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+
       # The integration gate: a project-wide type-check catches a fix that
       # compiles in isolation but breaks type inference in *other* files.
       - name: Type-check (full project)
