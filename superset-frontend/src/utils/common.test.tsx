@@ -16,16 +16,119 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { SupersetClient } from '@superset-ui/core';
 import {
   applyFormattingToTabularData,
+  detectOS,
+  isSafari,
+  noOp,
   optionFromValue,
+  optionLabel,
+  optionValue,
   prepareCopyToClipboardTabularData,
+  storeQuery,
+  EMPTY_STRING,
   NULL_STRING,
   TRUE_STRING,
   FALSE_STRING,
+  SHORT_DATE,
+  SHORT_TIME,
   TabularDataRow,
   ColumnDefinition,
 } from 'src/utils/common';
+
+jest.mock('@superset-ui/core', () => ({
+  ...jest.requireActual('@superset-ui/core'),
+  SupersetClient: { post: jest.fn() },
+}));
+
+const mockedPost = SupersetClient.post as jest.Mock;
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+test('exposes the expected string constants', () => {
+  expect(EMPTY_STRING).toBe('<empty string>');
+  expect(NULL_STRING).toBe('<NULL>');
+  expect(TRUE_STRING).toBe('TRUE');
+  expect(FALSE_STRING).toBe('FALSE');
+  expect(SHORT_DATE).toBe('MMM D, YYYY');
+  expect(SHORT_TIME).toBe('h:m a');
+});
+
+test('optionLabel maps special values to their labels', () => {
+  expect(optionLabel(null)).toBe(NULL_STRING);
+  expect(optionLabel('')).toBe(EMPTY_STRING);
+  expect(optionLabel(true)).toBe(TRUE_STRING);
+  expect(optionLabel(false)).toBe(FALSE_STRING);
+  expect(optionLabel(5)).toBe('5');
+  expect(optionLabel('foo')).toBe('foo');
+});
+
+test('optionValue replaces null with NULL_STRING and passes through others', () => {
+  expect(optionValue(null)).toBe(NULL_STRING);
+  expect(optionValue('')).toBe('');
+  expect(optionValue(0)).toBe(0);
+  expect(optionValue(false)).toBe(false);
+  expect(optionValue('foo')).toBe('foo');
+});
+
+test('storeQuery posts the query and builds a shareable url', async () => {
+  mockedPost.mockResolvedValue({ json: { id: 'abc123' } });
+  const url = await storeQuery({ sql: 'SELECT 1' });
+  expect(mockedPost).toHaveBeenCalledWith({
+    endpoint: '/kv/store/',
+    postPayload: { data: { sql: 'SELECT 1' } },
+  });
+  expect(url).toBe(
+    `${window.location.origin + window.location.pathname}?id=abc123`,
+  );
+});
+
+test('noOp returns undefined', () => {
+  expect(noOp()).toBeUndefined();
+});
+
+test('detectOS reads the OS from the browser appVersion', () => {
+  const setAppVersion = (value: string) =>
+    Object.defineProperty(window.navigator, 'appVersion', {
+      value,
+      configurable: true,
+    });
+
+  setAppVersion('5.0 (Windows NT 10.0; Win64; x64)');
+  expect(detectOS()).toBe('Windows');
+  setAppVersion('5.0 (Macintosh; Intel Mac OS X 10_15_7)');
+  expect(detectOS()).toBe('MacOS');
+  setAppVersion('5.0 (X11; Ubuntu)');
+  expect(detectOS()).toBe('UNIX');
+  setAppVersion('5.0 (Linux; Android 10)');
+  expect(detectOS()).toBe('Linux');
+  setAppVersion('5.0 (compatible)');
+  expect(detectOS()).toBe('Unknown OS');
+});
+
+test('isSafari detects Safari user agents only', () => {
+  const setUserAgent = (value: string) =>
+    Object.defineProperty(window.navigator, 'userAgent', {
+      value,
+      configurable: true,
+    });
+
+  setUserAgent(
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 ' +
+      '(KHTML, like Gecko) Version/16.0 Safari/605.1.15',
+  );
+  expect(isSafari()).toBe(true);
+  setUserAgent(
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, ' +
+      'like Gecko) Chrome/120.0 Safari/537.36',
+  );
+  expect(isSafari()).toBe(false);
+  setUserAgent('');
+  expect(isSafari()).toBe(false);
+});
 
 test('converts values as expected', () => {
   expect(optionFromValue(false)).toEqual({
