@@ -41,6 +41,12 @@ jobs:
       - name: Jest (unit tests)
         run: npm run test -- src/utils
 
+      # The project-wide type-check uses composite project references, so the
+      # workspace packages must be built first (otherwise tsc emits TS6305 for
+      # their unbuilt declaration outputs). Mirrors superset-frontend.yml.
+      - name: Build workspace packages
+        run: npm run plugins:build
+
       # The integration gate: a project-wide type-check catches a fix that
       # compiles in isolation but breaks type inference in *other* files.
       - name: Type-check (full project)
